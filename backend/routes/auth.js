@@ -13,10 +13,18 @@ router.post('/signup', async (req, res) => {
     const { email, name, password } = req.body;
 
     if (!email || !name || !password) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ error: 'Missing required fields: email, name, password' });
     }
 
-    const existingUser = await User.findOne({ email });
+    // Check if user already exists
+    let existingUser;
+    try {
+      existingUser = await User.findOne({ email });
+    } catch (dbErr) {
+      console.error('Database error:', dbErr.message);
+      return res.status(503).json({ error: 'Database connection failed. Configure MONGODB_URI in backend/.env' });
+    }
+
     if (existingUser) {
       return res.status(409).json({ error: 'Email already exists' });
     }
@@ -38,7 +46,8 @@ router.post('/signup', async (req, res) => {
       token
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Signup error:', err);
+    res.status(500).json({ error: err.message || 'Signup failed' });
   }
 });
 

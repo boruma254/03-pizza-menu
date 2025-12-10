@@ -15,9 +15,15 @@ app.use(cors());
 app.use(express.json());
 
 // Connect to MongoDB
-mongoose.connect(MONGODB_URI)
+const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/pizza-menu';
+console.log('📦 Connecting to MongoDB...');
+mongoose.connect(mongoUri)
   .then(() => console.log('✓ Connected to MongoDB'))
-  .catch(err => console.error('✗ MongoDB connection error:', err));
+  .catch(err => {
+    console.error('✗ MongoDB connection error:', err.message);
+    console.warn('⚠️  WARNING: Database is not connected. Auth will fail.');
+    console.warn('   Set MONGODB_URI in backend/.env with your MongoDB connection string');
+  });
 
 // Routes
 app.use('/api/auth', authRoutes);
