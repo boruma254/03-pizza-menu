@@ -355,11 +355,6 @@ function LoginPage({ onLogin, onToggleSignUp, setLoading, showNotification }) {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState("");
-  const [loginMethod, setLoginMethod] = React.useState("email"); // "email", "phone", "google"
-  const [phoneNumber, setPhoneNumber] = React.useState("");
-  const [googleEmail, setGoogleEmail] = React.useState("");
-  const [phoneOtpSent, setPhoneOtpSent] = React.useState(false);
-  const [otpCode, setOtpCode] = React.useState("");
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();
@@ -383,187 +378,40 @@ function LoginPage({ onLogin, onToggleSignUp, setLoading, showNotification }) {
     }
   };
 
-  const handlePhoneLogin = async (e) => {
-    e.preventDefault();
-    setError("");
-
-    if (!phoneNumber.trim()) {
-      setError("Please enter a phone number");
-      return;
-    }
-
-    // Phone login not yet implemented in backend
-    setError("Phone login coming soon!");
-  };
-
-  const handleGoogleLogin = async (e) => {
-    e.preventDefault();
-    setError("");
-
-    // Google login not yet implemented in backend
-    setError("Google login coming soon!");
-  };
-
-  const verifyPhoneOtp = async (e) => {
-    e && e.preventDefault();
-    setError("");
-    // Placeholder for future phone OTP verification
-    setError("Phone verification coming soon!");
-  };
-
   return (
     <div className="login-container">
       <div className="login-box">
         <h1>🍕 Fast React Pizza Co.</h1>
         <h2>Sign In</h2>
 
-        {/* Login Method Tabs */}
-        <div className="login-method-tabs">
-          <button
-            className={`tab-btn ${loginMethod === "email" ? "active" : ""}`}
-            onClick={() => {
-              setLoginMethod("email");
-              setError("");
-            }}
-          >
-            📧 Email
-          </button>
-          <button
-            className={`tab-btn ${loginMethod === "phone" ? "active" : ""}`}
-            onClick={() => {
-              setLoginMethod("phone");
-              setError("");
-            }}
-          >
-            📱 Phone
-          </button>
-          <button
-            className={`tab-btn ${loginMethod === "google" ? "active" : ""}`}
-            onClick={() => {
-              setLoginMethod("google");
-              setError("");
-            }}
-          >
-            🔐 Google
-          </button>
-        </div>
-
-        {/* Email Login Form */}
-        {loginMethod === "email" && (
-          <form onSubmit={handleEmailLogin} className="login-form">
-            <div className="form-group">
-              <label htmlFor="email">Email:</label>
-              <input
-                type="email"
-                id="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your@email.com"
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="password">Password:</label>
-              <input
-                type="password"
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                required
-              />
-            </div>
-            {error && <p className="error-message">{error}</p>}
-            <button type="submit" className="login-btn">
-              Sign In with Email
-            </button>
-          </form>
-        )}
-
-        {/* Phone Login Form */}
-        {loginMethod === "phone" && (
-          <div className="login-form">
-            {!phoneOtpSent ? (
-              <form onSubmit={handlePhoneLogin}>
-                <div className="form-group">
-                  <label htmlFor="phone">Phone Number:</label>
-                  <input
-                    type="tel"
-                    id="phone"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    placeholder="+1 (555) 123-4567"
-                    pattern="[+]?[0-9\s\-()]{10,}"
-                  />
-                </div>
-                <p className="form-hint">
-                  ℹ️ Enter your phone number. You'll receive an OTP.
-                </p>
-                {error && <p className="error-message">{error}</p>}
-                <button type="submit" className="login-btn">
-                  Send OTP
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={verifyPhoneOtp}>
-                <div className="form-group">
-                  <label htmlFor="otp">Enter OTP:</label>
-                  <input
-                    type="text"
-                    id="otp"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value)}
-                    placeholder="123456"
-                    required
-                  />
-                </div>
-                {error && <p className="error-message">{error}</p>}
-                <button type="submit" className="login-btn">
-                  Verify OTP
-                </button>
-                <button
-                  type="button"
-                  className="clear-btn"
-                  onClick={() => {
-                    setPhoneOtpSent(false);
-                    setPendingPhone("");
-                    setOtpCode("");
-                    setError("");
-                  }}
-                >
-                  Cancel
-                </button>
-              </form>
-            )}
+        <form onSubmit={handleEmailLogin} className="login-form">
+          <div className="form-group">
+            <label htmlFor="email">Email:</label>
+            <input
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="your@email.com"
+              required
+            />
           </div>
-        )}
-
-        {/* Google Login Form */}
-        {loginMethod === "google" && (
-          <form onSubmit={handleGoogleLogin} className="login-form">
-            <div className="form-hint">
-              <p>🔐 Continue with your Google account</p>
-            </div>
-            <div className="form-group">
-              <label htmlFor="googleEmail">Google Email:</label>
-              <input
-                type="email"
-                id="googleEmail"
-                value={googleEmail}
-                onChange={(e) => setGoogleEmail(e.target.value)}
-                placeholder="your.email@gmail.com"
-                required
-              />
-            </div>
-            <p className="form-hint">
-              💡 In production, this would redirect to Google's login page.
-            </p>
-            {error && <p className="error-message">{error}</p>}
-            <button type="submit" className="login-btn google-btn">
-              Continue with Google
-            </button>
-          </form>
-        )}
+          <div className="form-group">
+            <label htmlFor="password">Password:</label>
+            <input
+              type="password"
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your password"
+              required
+            />
+          </div>
+          {error && <p className="error-message">{error}</p>}
+          <button type="submit" className="login-btn">
+            Sign In
+          </button>
+        </form>
 
         <div className="signup-link">
           <p>
