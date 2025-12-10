@@ -52,11 +52,9 @@ export const pizzaData = [
 ];
 
 // Customer database
-export const customerDatabase = {
-  "john@example.com": { password: "password123", name: "John Doe", orders: [] },
-  "jane@example.com": { password: "password123", name: "Jane Smith", orders: [] },
-  "demo@example.com": { password: "demo123", name: "Demo User", orders: [] },
-};
+// No demo accounts are included in the public repository.
+// An empty database object is exported; connect a real database in production.
+export const customerDatabase = {};
 
 // Order statuses
 export const orderStatuses = [

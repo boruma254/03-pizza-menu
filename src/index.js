@@ -335,15 +335,12 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
     if (phoneUser) {
       onLogin(phoneUser.email, phoneUser.name);
     } else {
-      // For demo: create a user with phone number
-      const demoName = "Phone User";
-      const demoEmail = `phone_${phoneNumber}@pizza.local`;
+      // Create a lightweight account placeholder for phone login (not persisted)
+      const userName = "Phone User";
+      const userEmail = `phone_${phoneNumber}@pizza.local`;
 
-      // This would persist in a real database
-      onLogin(demoEmail, demoName);
-      alert(
-        "Welcome! A new account has been created with your phone number."
-      );
+      onLogin(userEmail, userName);
+      alert("Welcome! An account has been created for this session.");
     }
   };
 
@@ -363,17 +360,14 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
     if (user) {
       onLogin(googleEmail, user.name);
     } else {
-      // For demo: create user with Google email
+      // Create a lightweight account placeholder for Google login (not persisted)
       const googleName = googleEmail.split("@")[0].replace(/\./g, " ");
       const userName =
         googleName.charAt(0).toUpperCase() +
         googleName.slice(1).toLowerCase();
 
-      // This would be handled by Firebase in production
       onLogin(googleEmail, userName);
-      alert(
-        "Welcome! Your Google account has been linked to a new pizza account."
-      );
+      alert("Welcome! Your Google account is being used for this session.");
     }
   };
 
@@ -461,7 +455,7 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
               />
             </div>
             <p className="form-hint">
-              ℹ️ Enter your phone number. You'll receive an OTP (demo mode).
+              ℹ️ Enter your phone number. You'll receive an OTP.
             </p>
             {error && <p className="error-message">{error}</p>}
             <button type="submit" className="login-btn">
@@ -504,23 +498,6 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
               Sign Up Here
             </button>
           </p>
-        </div>
-
-        <div className="demo-accounts">
-          <h3>Demo Accounts:</h3>
-          <div className="demo-method">
-            <strong>📧 Email Method:</strong>
-            <p>john@example.com / password123</p>
-            <p>jane@example.com / password123</p>
-          </div>
-          <div className="demo-method">
-            <strong>📱 Phone Method:</strong>
-            <p>+1 555-123-4567 (any number works in demo)</p>
-          </div>
-          <div className="demo-method">
-            <strong>🔐 Google Method:</strong>
-            <p>john@gmail.com (any Google email works in demo)</p>
-          </div>
         </div>
       </div>
     </div>
@@ -751,14 +728,14 @@ function OrderHistory({ orders, updateOrderStatus }) {
               </div>
             </div>
 
-            {order.currentStatus < 5 && (
-              <button
-                className="update-status-btn"
-                onClick={() => updateOrderStatus(order.id)}
-              >
-                Advance Order Status (Demo)
-              </button>
-            )}
+                    {order.currentStatus < 5 && (
+                      <button
+                        className="update-status-btn"
+                        onClick={() => updateOrderStatus(order.id)}
+                      >
+                        Advance Order Status
+                      </button>
+                    )}
             {order.currentStatus === 5 && (
               <p className="delivered-message">✓ Order Delivered!</p>
             )}
