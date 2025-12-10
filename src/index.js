@@ -2,10 +2,11 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
 import { pizzaData, customerDatabase, orderStatuses } from "./data.js";
-import { supabase } from "./supabaseClient";
+import { supabase, upsertProfile, saveOrderToSupabase } from "./supabaseClient";
 
 function App() {
   const [currentUser, setCurrentUser] = React.useState(null);
+  const [supabaseSessionUser, setSupabaseSessionUser] = React.useState(null);
   const [cart, setCart] = React.useState([]);
   const [orders, setOrders] = React.useState([]);
   const [showOrderHistory, setShowOrderHistory] = React.useState(false);
@@ -16,6 +17,43 @@ function App() {
     setCurrentUser({ email, name });
     setShowOrderHistory(false);
   };
+
+  // Monitor Supabase session and auto-login if present
+  React.useEffect(() => {
+    let subscription = null;
+    async function init() {
+      if (!supabase) return;
+      const { data: { user } = {} } = await supabase.auth.getUser();
+      if (user) {
+        // set the app user from Supabase session
+        const name = user.user_metadata?.full_name || user.email;
+        setCurrentUser({ email: user.email, name, id: user.id });
+        setSupabaseSessionUser(user);
+        // ensure profile exists
+        upsertProfile(user);
+      }
+
+      // subscribe to auth changes
+      const { data } = supabase.auth.onAuthStateChange((event, session) => {
+        const u = session?.user || null;
+        if (u) {
+          const n = u.user_metadata?.full_name || u.email;
+          setCurrentUser({ email: u.email, name: n, id: u.id });
+          setSupabaseSessionUser(u);
+          upsertProfile(u);
+        } else {
+          setSupabaseSessionUser(null);
+          // don't automatically logout app user here to avoid UX surprises
+        }
+      });
+      subscription = data?.subscription;
+    }
+
+    init();
+    return () => {
+      if (subscription?.unsubscribe) subscription.unsubscribe();
+    };
+  }, []);
 
   const handleSignUp = async (email, name, password) => {
     // If Supabase is configured, use it for sign up
@@ -37,7 +75,9 @@ function App() {
         }
 
         const user = signInData.user;
-        handleLogin(user.email, user.user_metadata?.full_name || user.email);
+        // upsert profile and login with id
+        await upsertProfile(user);
+        handleLogin(user.email, user.user_metadata?.full_name || user.email, user.id);
         setShowSignUp(false);
         return true;
       } catch (err) {
@@ -80,7 +120,7 @@ function App() {
     setCart([]);
   };
 
-  const placeOrder = () => {
+  const placeOrder = async () => {
     if (cart.length === 0) return;
 
     const newOrder = {
@@ -94,6 +134,16 @@ function App() {
     setOrders([...orders, newOrder]);
     setCart([]);
     alert("Order placed successfully! Track your order in the order history.");
+
+    // Persist order to Supabase if available
+    try {
+      if (supabase && currentUser) {
+        // saveOrderToSupabase accepts user (with id/email) and order
+        await saveOrderToSupabase(currentUser, newOrder);
+      }
+    } catch (err) {
+      console.warn('Order save failed', err?.message || err);
+    }
   };
 
   const updateOrderStatus = (orderId) => {
@@ -343,6 +393,9 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
   const [loginMethod, setLoginMethod] = React.useState("email"); // "email", "phone", "google"
   const [phoneNumber, setPhoneNumber] = React.useState("");
   const [googleEmail, setGoogleEmail] = React.useState("");
+  const [phoneOtpSent, setPhoneOtpSent] = React.useState(false);
+  const [pendingPhone, setPendingPhone] = React.useState("");
+  const [otpCode, setOtpCode] = React.useState("");
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();
@@ -357,7 +410,8 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
         }
 
         const user = data.user;
-        onLogin(user.email, user.user_metadata?.full_name || user.email);
+        await upsertProfile(user);
+        onLogin(user.email, user.user_metadata?.full_name || user.email, user.id);
       } catch (err) {
         setError(err.message || "Login failed");
       }
@@ -391,7 +445,9 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
           return;
         }
 
-        alert("An OTP has been sent to your phone. Complete verification to sign in.");
+        // Show inline OTP verification UI
+        setPendingPhone(phoneNumber);
+        setPhoneOtpSent(true);
         return;
       } catch (err) {
         setError(err.message || "Phone sign-in failed");
@@ -444,6 +500,35 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
 
       onLogin(googleEmail, userName);
       alert("Welcome! Your Google account is being used for this session.");
+    }
+  };
+
+  const verifyPhoneOtp = async (e) => {
+    e && e.preventDefault();
+    setError("");
+    if (!otpCode.trim() || !pendingPhone) {
+      setError("Enter the OTP code");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({ phone: pendingPhone, token: otpCode, type: 'sms' });
+      if (error) {
+        setError(error.message || 'OTP verification failed');
+        return;
+      }
+
+      const user = data?.user || null;
+      if (user) {
+        onLogin(user.email, user.user_metadata?.full_name || user.email, user.id);
+        await upsertProfile(user);
+      }
+
+      setPhoneOtpSent(false);
+      setPendingPhone("");
+      setOtpCode("");
+    } catch (err) {
+      setError(err.message || 'OTP verification failed');
     }
   };
 
@@ -518,26 +603,60 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
 
         {/* Phone Login Form */}
         {loginMethod === "phone" && (
-          <form onSubmit={handlePhoneLogin} className="login-form">
-            <div className="form-group">
-              <label htmlFor="phone">Phone Number:</label>
-              <input
-                type="tel"
-                id="phone"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="+1 (555) 123-4567"
-                pattern="[+]?[0-9\s\-()]{10,}"
-              />
-            </div>
-            <p className="form-hint">
-              ℹ️ Enter your phone number. You'll receive an OTP.
-            </p>
-            {error && <p className="error-message">{error}</p>}
-            <button type="submit" className="login-btn">
-              Sign In with Phone
-            </button>
-          </form>
+          <div className="login-form">
+            {!phoneOtpSent ? (
+              <form onSubmit={handlePhoneLogin}>
+                <div className="form-group">
+                  <label htmlFor="phone">Phone Number:</label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="+1 (555) 123-4567"
+                    pattern="[+]?[0-9\s\-()]{10,}"
+                  />
+                </div>
+                <p className="form-hint">
+                  ℹ️ Enter your phone number. You'll receive an OTP.
+                </p>
+                {error && <p className="error-message">{error}</p>}
+                <button type="submit" className="login-btn">
+                  Send OTP
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={verifyPhoneOtp}>
+                <div className="form-group">
+                  <label htmlFor="otp">Enter OTP:</label>
+                  <input
+                    type="text"
+                    id="otp"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    placeholder="123456"
+                    required
+                  />
+                </div>
+                {error && <p className="error-message">{error}</p>}
+                <button type="submit" className="login-btn">
+                  Verify OTP
+                </button>
+                <button
+                  type="button"
+                  className="clear-btn"
+                  onClick={() => {
+                    setPhoneOtpSent(false);
+                    setPendingPhone("");
+                    setOtpCode("");
+                    setError("");
+                  }}
+                >
+                  Cancel
+                </button>
+              </form>
+            )}
+          </div>
         )}
 
         {/* Google Login Form */}
