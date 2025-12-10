@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Roboto+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap");
 
 * {
   margin: 0;
@@ -11,24 +11,26 @@ html {
 }
 
 body {
-  font-family: "Roboto Mono", sans-serif;
-  color: #252525;
+  font-family: "Poppins", "Roboto Mono", sans-serif;
+  color: #262626;
   font-weight: 400;
-  background-color: #f7f2e9;
+  background: radial-gradient(1200px 400px at 10% 10%, rgba(237,200,75,0.06), transparent 10%), linear-gradient(180deg, #fbf8f3 0%, #f7f2e9 60%);
   border-bottom: 1.6rem solid #edc84b;
   min-height: 100vh;
   padding: 3.2rem;
   padding-bottom: 6rem;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
 }
 
 .container {
-  max-width: 80rem;
+  max-width: 90rem;
   margin: 0 auto;
-
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4.8rem;
+  padding: 2rem;
 }
 
 .header {
@@ -44,19 +46,17 @@ body {
 }
 
 .header h1 {
-  /* Non-accessible color */
-  color: #edc84b;
-  /* color: #af8602; */
-
+  color: #bf8d1a;
   text-transform: uppercase;
   text-align: center;
-  font-size: 5.2rem;
-  font-weight: 300;
-  letter-spacing: 3px;
+  font-size: 4.8rem;
+  font-weight: 600;
+  letter-spacing: 2px;
   position: relative;
   width: 100%;
   display: block;
   flex: 1;
+  text-shadow: 0 6px 18px rgba(189,138,32,0.08);
 }
 
 .header h1::before,
@@ -149,19 +149,33 @@ body {
 .pizzas {
   list-style: none;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4.8rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3.2rem;
 }
 
 .pizza {
   display: flex;
-  gap: 3.2rem;
+  gap: 2.4rem;
+  background: linear-gradient(180deg, #fff 0%, #fff 100%);
+  padding: 1.6rem;
+  border-radius: 12px;
+  align-items: center;
+  box-shadow: 0 8px 24px rgba(33,33,33,0.06);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.pizza:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 40px rgba(33,33,33,0.09);
 }
 
 .pizza img {
-  width: 12rem;
-  aspect-ratio: 1;
-  align-self: start;
+  width: 14rem;
+  height: 14rem;
+  object-fit: cover;
+  border-radius: 10px;
+  align-self: center;
+  flex-shrink: 0;
 }
 
 .pizza div {
@@ -177,9 +191,9 @@ body {
 }
 
 .pizza p {
-  font-size: 1.4rem;
+  font-size: 1.45rem;
   font-weight: 300;
-  font-style: italic;
+  color: #444;
   margin-bottom: auto;
 }
 
@@ -198,21 +212,23 @@ body {
 }
 
 .add-to-cart-btn {
-  color: inherit;
+  color: #2b2b2b;
   font-family: inherit;
   border: none;
-  font-size: 1.2rem;
-  font-weight: 500;
-  background-color: #edc84b;
-  padding: 0.8rem 1.6rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  background: linear-gradient(90deg, #f6c74a, #e9b22a);
+  padding: 0.9rem 1.8rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
   margin-top: 1rem;
-  border-radius: 4px;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(233,178,42,0.18);
 }
 
 .add-to-cart-btn:hover:not(:disabled) {
-  background-color: #e9bb24;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(233,178,42,0.22);
 }
 
 .add-to-cart-btn:disabled {
@@ -225,11 +241,11 @@ body {
 
 .cart {
   width: 100%;
-  max-width: 50rem;
-  background-color: #fff;
+  max-width: 54rem;
+  background-color: #ffffff;
   padding: 2.4rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(33,33,33,0.06);
   margin-top: 2rem;
 }
 
@@ -300,30 +316,26 @@ body {
   font-family: inherit;
   border: none;
   font-size: 1.4rem;
-  font-weight: 500;
+  font-weight: 600;
   padding: 1rem;
   cursor: pointer;
-  transition: all 0.2s;
-  border-radius: 4px;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  border-radius: 10px;
   margin-bottom: 0.8rem;
 }
 
 .order-btn {
-  background-color: #edc84b;
+  background: linear-gradient(90deg, #f6c74a, #e9b22a);
+  box-shadow: 0 8px 22px rgba(233,178,42,0.16);
 }
-
-.order-btn:hover {
-  background-color: #e9bb24;
-}
+.order-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(233,178,42,0.18); }
 
 .clear-btn {
-  background-color: #f0f0f0;
-  border: 1px solid #ddd;
+  background-color: #f8f8f8;
+  border: 1px solid #eee;
 }
 
-.clear-btn:hover {
-  background-color: #e0e0e0;
-}
+.clear-btn:hover { background-color: #f0f0f0; transform: translateY(-1px); }
 
 .cart-badge {
   position: absolute;
@@ -353,20 +365,19 @@ body {
 }
 
 .btn {
-  color: inherit;
+  color: #222;
   font-family: inherit;
   border: none;
   font-size: 1.4rem;
-  font-weight: 500;
-  background-color: #edc84b;
-  padding: 1.4rem 3.2rem;
+  font-weight: 600;
+  background: linear-gradient(90deg, #f6c74a, #e9b22a);
+  padding: 1.2rem 2.4rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  border-radius: 10px;
+  box-shadow: 0 8px 22px rgba(233,178,42,0.14);
 }
-
-.btn:hover {
-  background-color: #e9bb24;
-}
+.btn:hover { transform: translateY(-3px); box-shadow: 0 18px 42px rgba(233,178,42,0.18); }
 
 /* LOGIN PAGE STYLES */
 .login-container {
@@ -374,15 +385,15 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #f7f2e9 0%, #edc84b 100%);
+  background: linear-gradient(135deg, rgba(247,242,233,0.96) 0%, rgba(237,200,75,0.06) 100%);
 }
 
 .login-box {
-  background-color: white;
-  padding: 4rem;
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-  max-width: 40rem;
+  background-color: #ffffff;
+  padding: 3.2rem;
+  border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(33,33,33,0.08);
+  max-width: 42rem;
   width: 100%;
 }
 
@@ -392,8 +403,8 @@ body {
 
 .login-box h1 {
   text-align: center;
-  color: #edc84b;
-  font-size: 3rem;
+  color: #bf8d1a;
+  font-size: 2.6rem;
   margin-bottom: 1rem;
 }
 
