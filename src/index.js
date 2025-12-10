@@ -1,19 +1,18 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
-import { pizzaData, customerDatabase, orderStatuses } from "./data.js";
+import { pizzaData, customerDatabase, orderStatuses, adminEmails } from "./data.js";
+import AdminPage from "./AdminPage";
 import {
-  firebaseConfigured,
-  listenAuthState,
-  upsertProfile,
-  saveOrderToFirestore,
-  signUpWithEmail,
-  signInWithEmail,
-  signInWithGoogle,
-  sendPhoneOtp,
-  verifyPhoneOtp as verifyPhoneOtpWithFirebase,
-  signOutFirebase,
-} from "./firebaseClient";
+  signUpWithBackend,
+  signInWithBackend,
+  createOrder,
+  getUserOrders,
+  updateOrderStatus as updateOrderStatusAPI,
+  signOutBackend,
+  setToken,
+  checkHealth,
+} from "./apiClient";
 import Notification from "./components/Notification";
 import Loader from "./components/Loader";
 
@@ -23,6 +22,7 @@ function App() {
   const [cart, setCart] = React.useState([]);
   const [orders, setOrders] = React.useState([]);
   const [showOrderHistory, setShowOrderHistory] = React.useState(false);
+  const [showAdmin, setShowAdmin] = React.useState(false);
   const [database, setDatabase] = React.useState(customerDatabase);
   const [showSignUp, setShowSignUp] = React.useState(false);
   const [notification, setNotification] = React.useState(null);
@@ -38,70 +38,38 @@ function App() {
     setShowOrderHistory(false);
   };
 
-  // Monitor Firebase auth state and auto-login if present
+  // Monitor backend auth state on mount
   React.useEffect(() => {
-    if (!firebaseConfigured) return;
-    const unsub = listenAuthState(async (user) => {
-      if (user) {
-        const name = user.displayName || user.email;
-        setCurrentUser({ email: user.email, name, id: user.uid });
-        // ensure profile exists
-        await upsertProfile(user);
-      }
-    });
-    return () => {
-      if (typeof unsub === "function") unsub();
-    };
+    const token = localStorage.getItem('token');
+    if (token) {
+      setToken(token);
+      // Auto-restore user session (optional: fetch from backend)
+    }
   }, []);
 
   const handleSignUp = async (email, name, password) => {
-    // If Firebase is configured, use it for sign up
-    if (firebaseConfigured) {
-      setLoading(true);
-      try {
-        const user = await signUpWithEmail(email, password, name);
-        if (user) {
-          await upsertProfile(user);
-          handleLogin(user.email, user.displayName || name || user.email);
-          setShowSignUp(false);
-          showNotification("Account created and signed in", "success");
-          setLoading(false);
-          return true;
-        }
-        setLoading(false);
-        return false;
-      } catch (err) {
-        showNotification(err.message || "Sign up failed", "error");
-        setLoading(false);
-        return false;
-      }
-    }
-
-    // Fallback: in-memory database (development only)
-    if (database[email]) {
-      alert("Email already exists!");
+    setLoading(true);
+    try {
+      const user = await signUpWithBackend(email, password, name);
+      handleLogin(user.email, user.name);
+      setShowSignUp(false);
+      showNotification("Account created and signed in", "success");
+      setLoading(false);
+      return true;
+    } catch (err) {
+      showNotification(err.message || "Sign up failed", "error");
+      setLoading(false);
       return false;
     }
-
-    const newDatabase = {
-      ...database,
-      [email]: { password, name, orders: [] },
-    };
-    setDatabase(newDatabase);
-    handleLogin(email, name);
-    setShowSignUp(false);
-    showNotification("Account created (local)", "success");
-    return true;
   };
 
   const handleLogout = () => {
-    // Sign out from Firebase if available
-    if (firebaseConfigured) {
-      signOutFirebase().catch(() => {});
-    }
+    // Sign out from backend
+    signOutBackend();
     setCurrentUser(null);
     setCart([]);
     setShowOrderHistory(false);
+    setOrders([]);
     showNotification("Logged out", "info");
   };
 
@@ -121,29 +89,21 @@ function App() {
     if (cart.length === 0) return;
 
     const newOrder = {
-      id: Math.random().toString(36).substr(2, 9),
       items: [...cart],
       total: cart.reduce((sum, pizza) => sum + pizza.price, 0),
-      date: new Date().toLocaleString(),
-      currentStatus: 0,
     };
 
-    setOrders([...orders, newOrder]);
-    setCart([]);
-    showNotification("Order placed successfully! Track your order in order history.", "success");
-
-    // Persist order to Firestore if available
     try {
-      if (firebaseConfigured && currentUser) {
-        setLoading(true);
-        // saveOrderToFirestore accepts user (with id/email) and order
-        await saveOrderToFirestore(currentUser, newOrder);
-        setLoading(false);
-      }
+      setLoading(true);
+      const savedOrder = await createOrder(newOrder.items, newOrder.total);
+      setOrders([...orders, { ...savedOrder, id: savedOrder._id, currentStatus: 0 }]);
+      setCart([]);
+      showNotification("Order placed successfully! Track your order in order history.", "success");
+      setLoading(false);
     } catch (err) {
       setLoading(false);
       console.warn('Order save failed', err?.message || err);
-      showNotification('Order saved remotely failed', 'error');
+      showNotification('Order placement failed', 'error');
     }
   };
 
@@ -155,6 +115,9 @@ function App() {
           : order
       )
     );
+    // Sync with backend (optional)
+    const nextStatus = (orders.find(o => o.id === orderId)?.currentStatus || 0) + 1;
+    updateOrderStatusAPI(orderId, nextStatus).catch(() => {});
   };
 
   return (
@@ -405,34 +368,22 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
   const handleEmailLogin = async (e) => {
     e.preventDefault();
     setError("");
-    if (firebaseConfigured) {
-      setLoading(true);
-      try {
-        const user = await signInWithEmail(email, password);
-        if (!user) {
-          setLoading(false);
-          setError("Invalid email or password.");
-          showNotification("Invalid email or password.", "error");
-          return;
-        }
-        await upsertProfile(user);
-        onLogin(user.email, user.displayName || user.email, user.uid);
-        showNotification('Signed in successfully', 'success');
+    setLoading(true);
+    try {
+      const user = await signInWithBackend(email, password);
+      if (!user) {
         setLoading(false);
-      } catch (err) {
-        setLoading(false);
-        setError(err.message || "Login failed");
-        showNotification(err.message || "Login failed", "error");
+        setError("Invalid email or password.");
+        showNotification("Invalid email or password.", "error");
+        return;
       }
-      return;
-    }
-
-    // Fallback: in-memory database
-    const user = database[email];
-    if (user && user.password === password) {
-      onLogin(email, user.name);
-    } else {
-      setError("Invalid email or password.");
+      onLogin(user.email, user.name);
+      showNotification('Signed in successfully', 'success');
+      setLoading(false);
+    } catch (err) {
+      setLoading(false);
+      setError(err.message || "Login failed");
+      showNotification(err.message || "Login failed", "error");
     }
   };
 
@@ -445,104 +396,23 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
       return;
     }
 
-    if (firebaseConfigured) {
-      try {
-        const res = await sendPhoneOtp(phoneNumber);
-        if (!res || !res.ok) {
-          setError((res && res.error && res.error.message) || "Phone sign-in failed");
-          return;
-        }
-        // Show inline OTP verification UI
-        setPendingPhone(phoneNumber);
-        setPhoneOtpSent(true);
-        showNotification('OTP sent to your phone', 'info');
-        return;
-      } catch (err) {
-        setError(err.message || "Phone sign-in failed");
-        return;
-      }
-    }
-
-    // Fallback: in-memory database behavior
-    const phoneUser = Object.values(database).find((user) => user.phone === phoneNumber);
-
-    if (phoneUser) {
-      onLogin(phoneUser.email, phoneUser.name);
-    } else {
-      const userName = "Phone User";
-      const userEmail = `phone_${phoneNumber}@pizza.local`;
-
-      onLogin(userEmail, userName);
-      alert("Welcome! An account has been created for this session.");
-    }
+    // Phone login not yet implemented in backend
+    setError("Phone login coming soon!");
   };
 
   const handleGoogleLogin = async (e) => {
     e.preventDefault();
     setError("");
 
-    if (!googleEmail.trim()) {
-      setError("Please enter a Google email");
-      return;
-    }
-
-    if (firebaseConfigured) {
-      setLoading(true);
-      try {
-        const user = await signInWithGoogle();
-        if (user) {
-          await upsertProfile(user);
-          onLogin(user.email, user.displayName || user.email, user.uid);
-          showNotification('Signed in with Google', 'success');
-        }
-      } catch (err) {
-        setError(err.message || "Google sign-in failed");
-        showNotification(err.message || "Google sign-in failed", "error");
-      }
-      setLoading(false);
-      return;
-    }
-
-    // Fallback behavior if Supabase not configured
-    const user = database[googleEmail];
-
-    if (user) {
-      onLogin(googleEmail, user.name);
-    } else {
-      const googleName = googleEmail.split("@")[0].replace(/\./g, " ");
-      const userName = googleName.charAt(0).toUpperCase() + googleName.slice(1).toLowerCase();
-
-      onLogin(googleEmail, userName);
-      alert("Welcome! Your Google account is being used for this session.");
-    }
+    // Google login not yet implemented in backend
+    setError("Google login coming soon!");
   };
 
   const verifyPhoneOtp = async (e) => {
     e && e.preventDefault();
     setError("");
-    if (!otpCode.trim() || !pendingPhone) {
-      setError("Enter the OTP code");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const user = await verifyPhoneOtpWithFirebase(otpCode);
-      if (user) {
-        onLogin(user.email, user.displayName || user.email, user.uid);
-        await upsertProfile(user);
-        showNotification('Phone verified and signed in', 'success');
-      }
-
-      setPhoneOtpSent(false);
-      setPendingPhone("");
-      setOtpCode("");
-      setLoading(false);
-    } catch (err) {
-      setLoading(false);
-      setError(err.message || 'OTP verification failed');
-      showNotification(err.message || 'OTP verification failed', 'error');
-    }
+    // Placeholder for future phone OTP verification
+    setError("Phone verification coming soon!");
   };
 
   return (

@@ -56,6 +56,9 @@ export const pizzaData = [
 // An empty database object is exported; connect a real database in production.
 export const customerDatabase = {};
 
+// Admin emails who can access the admin page (update with real emails)
+export const adminEmails = [];
+
 // Order statuses
 export const orderStatuses = [
   { id: 1, name: "Order Confirmed", description: "Your order has been confirmed" },

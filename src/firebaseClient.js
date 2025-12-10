@@ -10,7 +10,7 @@ import {
   RecaptchaVerifier,
   signInWithPhoneNumber,
 } from "firebase/auth";
-import { getFirestore, doc, setDoc, collection, addDoc } from "firebase/firestore";
+import { getFirestore, doc, setDoc, collection, addDoc, getDocs, query, orderBy } from "firebase/firestore";
 
 const firebaseConfig = (() => {
   const key = process.env.REACT_APP_FIREBASE_API_KEY;
@@ -69,6 +69,36 @@ async function saveOrderToFirestore(user, order) {
   } catch (err) {
     console.warn("saveOrderToFirestore error", err);
     throw err;
+  }
+}
+
+// Fetch profiles (basic list)
+async function fetchProfiles(limit = 100) {
+  if (!db) return [];
+  try {
+    const q = query(collection(db, 'profiles'), orderBy('created_at', 'desc'));
+    const snap = await getDocs(q);
+    const items = [];
+    snap.forEach(docSnap => items.push({ id: docSnap.id, ...docSnap.data() }));
+    return items.slice(0, limit);
+  } catch (err) {
+    console.warn('fetchProfiles error', err);
+    return [];
+  }
+}
+
+// Fetch orders (basic list)
+async function fetchOrders(limit = 200) {
+  if (!db) return [];
+  try {
+    const q = query(collection(db, 'orders'), orderBy('created_at', 'desc'));
+    const snap = await getDocs(q);
+    const items = [];
+    snap.forEach(docSnap => items.push({ id: docSnap.id, ...docSnap.data() }));
+    return items.slice(0, limit);
+  } catch (err) {
+    console.warn('fetchOrders error', err);
+    return [];
   }
 }
 
@@ -142,4 +172,6 @@ export {
   listenAuthState,
   sendPhoneOtp,
   verifyPhoneOtp,
+  fetchProfiles,
+  fetchOrders,
 };
