@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
-import { pizzaData, customerDatabase, orderStatuses } from "./data.js";
+import { pizzaData, orderStatuses } from "./data.js";
 import {
   signUpWithBackend,
   signInWithBackend,
@@ -134,7 +134,6 @@ function App() {
           <SignUpPage
             onSignUp={handleSignUp}
             onToggleSignUp={() => setShowSignUp(false)}
-            database={database}
             setLoading={setLoading}
             showNotification={showNotification}
           />
@@ -142,7 +141,6 @@ function App() {
           <LoginPage
             onLogin={handleLogin}
             onToggleSignUp={() => setShowSignUp(true)}
-            database={database}
             setLoading={setLoading}
             showNotification={showNotification}
           />
@@ -353,7 +351,7 @@ function Order({ closeHour, openHour }) {
   );
 }
 
-function LoginPage({ onLogin, onToggleSignUp, database, setLoading, showNotification }) {
+function LoginPage({ onLogin, onToggleSignUp, setLoading, showNotification }) {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState("");
@@ -361,7 +359,6 @@ function LoginPage({ onLogin, onToggleSignUp, database, setLoading, showNotifica
   const [phoneNumber, setPhoneNumber] = React.useState("");
   const [googleEmail, setGoogleEmail] = React.useState("");
   const [phoneOtpSent, setPhoneOtpSent] = React.useState(false);
-  const [pendingPhone, setPendingPhone] = React.useState("");
   const [otpCode, setOtpCode] = React.useState("");
 
   const handleEmailLogin = async (e) => {
@@ -581,15 +578,13 @@ function LoginPage({ onLogin, onToggleSignUp, database, setLoading, showNotifica
   );
 }
 
-function SignUpPage({ onSignUp, onToggleSignUp, database, setLoading, showNotification }) {
+function SignUpPage({ onSignUp, onToggleSignUp, setLoading, showNotification }) {
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
-  const [phoneNumber, setPhoneNumber] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [error, setError] = React.useState("");
   const [success, setSuccess] = React.useState("");
-  const [signupMethod, setSignupMethod] = React.useState("email"); // "email" or "phone"
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -601,39 +596,21 @@ function SignUpPage({ onSignUp, onToggleSignUp, database, setLoading, showNotifi
       return;
     }
 
-    if (signupMethod === "email") {
-      if (password !== confirmPassword) {
-        setError("Passwords do not match");
-        return;
-      }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
 
-      if (password.length < 6) {
-        setError("Password must be at least 6 characters");
-        return;
-      }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
 
-      if (onSignUp(email, name, password)) {
-        setSuccess("Account created successfully! Logging you in...");
-        setTimeout(() => {
-          // The onSignUp function already logged the user in
-        }, 1000);
-      }
-    } else if (signupMethod === "phone") {
-      if (!phoneNumber.trim()) {
-        setError("Phone number is required");
-        return;
-      }
-
-      // In production, you'd send an OTP to the phone number
-      const tempEmail = `phone_${phoneNumber}@pizza.local`;
-      const tempPassword = Math.random().toString(36).slice(-8);
-
-      if (onSignUp(tempEmail, name, tempPassword)) {
-        setSuccess("Account created with phone number! Logging you in...");
-        setTimeout(() => {
-          // The onSignUp function already logged the user in
-        }, 1000);
-      }
+    if (onSignUp(email, name, password)) {
+      setSuccess("Account created successfully! Logging you in...");
+      setTimeout(() => {
+        // The onSignUp function already logged the user in
+      }, 1000);
     }
   };
 
@@ -642,28 +619,6 @@ function SignUpPage({ onSignUp, onToggleSignUp, database, setLoading, showNotifi
       <div className="login-box signup-box">
         <h1>🍕 Fast React Pizza Co.</h1>
         <h2>Create Account</h2>
-
-        {/* Signup Method Tabs */}
-        <div className="login-method-tabs">
-          <button
-            className={`tab-btn ${signupMethod === "email" ? "active" : ""}`}
-            onClick={() => {
-              setSignupMethod("email");
-              setError("");
-            }}
-          >
-            📧 Email
-          </button>
-          <button
-            className={`tab-btn ${signupMethod === "phone" ? "active" : ""}`}
-            onClick={() => {
-              setSignupMethod("phone");
-              setError("");
-            }}
-          >
-            📱 Phone
-          </button>
-        </div>
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
@@ -678,65 +633,39 @@ function SignUpPage({ onSignUp, onToggleSignUp, database, setLoading, showNotifi
             />
           </div>
 
-          {/* Email Signup Method */}
-          {signupMethod === "email" && (
-            <>
-              <div className="form-group">
-                <label htmlFor="email">Email:</label>
-                <input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your@email.com"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="password">Password:</label>
-                <input
-                  type="password"
-                  id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 6 characters"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="confirmPassword">Confirm Password:</label>
-                <input
-                  type="password"
-                  id="confirmPassword"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Re-enter password"
-                  required
-                />
-              </div>
-            </>
-          )}
-
-          {/* Phone Signup Method */}
-          {signupMethod === "phone" && (
-            <>
-              <div className="form-group">
-                <label htmlFor="signupPhone">Phone Number:</label>
-                <input
-                  type="tel"
-                  id="signupPhone"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="+1 (555) 123-4567"
-                  pattern="[+]?[0-9\s\-()]{10,}"
-                  required
-                />
-              </div>
-              <p className="form-hint">
-                ℹ️ We'll send you an OTP to verify your phone number.
-              </p>
-            </>
-          )}
+          <div className="form-group">
+            <label htmlFor="email">Email:</label>
+            <input
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="your@email.com"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="password">Password:</label>
+            <input
+              type="password"
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 6 characters"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="confirmPassword">Confirm Password:</label>
+            <input
+              type="password"
+              id="confirmPassword"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Re-enter password"
+              required
+            />
+          </div>
 
           {error && <p className="error-message">{error}</p>}
           {success && <p className="success-message">{success}</p>}
