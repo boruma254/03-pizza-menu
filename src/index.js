@@ -1,17 +1,14 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
-import { pizzaData, customerDatabase, orderStatuses, adminEmails } from "./data.js";
-import AdminPage from "./AdminPage";
+import { pizzaData, customerDatabase, orderStatuses } from "./data.js";
 import {
   signUpWithBackend,
   signInWithBackend,
   createOrder,
-  getUserOrders,
   updateOrderStatus as updateOrderStatusAPI,
   signOutBackend,
   setToken,
-  checkHealth,
 } from "./apiClient";
 import Notification from "./components/Notification";
 import Loader from "./components/Loader";
@@ -22,8 +19,6 @@ function App() {
   const [cart, setCart] = React.useState([]);
   const [orders, setOrders] = React.useState([]);
   const [showOrderHistory, setShowOrderHistory] = React.useState(false);
-  const [showAdmin, setShowAdmin] = React.useState(false);
-  const [database, setDatabase] = React.useState(customerDatabase);
   const [showSignUp, setShowSignUp] = React.useState(false);
   const [notification, setNotification] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
@@ -140,12 +135,16 @@ function App() {
             onSignUp={handleSignUp}
             onToggleSignUp={() => setShowSignUp(false)}
             database={database}
+            setLoading={setLoading}
+            showNotification={showNotification}
           />
         ) : (
           <LoginPage
             onLogin={handleLogin}
             onToggleSignUp={() => setShowSignUp(true)}
             database={database}
+            setLoading={setLoading}
+            showNotification={showNotification}
           />
         )
       ) : showOrderHistory ? (
@@ -354,7 +353,7 @@ function Order({ closeHour, openHour }) {
   );
 }
 
-function LoginPage({ onLogin, onToggleSignUp, database }) {
+function LoginPage({ onLogin, onToggleSignUp, database, setLoading, showNotification }) {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState("");
@@ -582,7 +581,7 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
   );
 }
 
-function SignUpPage({ onSignUp, onToggleSignUp, database }) {
+function SignUpPage({ onSignUp, onToggleSignUp, database, setLoading, showNotification }) {
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [phoneNumber, setPhoneNumber] = React.useState("");
