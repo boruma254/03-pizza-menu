@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: pizza-menu-backend
+    env: node
+    branch: main
+    plan: starter
+    buildCommand: "cd backend && npm install"
+    startCommand: "cd backend && npm start"
+    envVars:
+      - key: MONGODB_URI
+        value: ""
+        sync: false
+      - key: JWT_SECRET
+        value: ""
+        sync: false
+    autoDeploy: true
+    region: oregon
