@@ -2,13 +2,24 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
 import { pizzaData, customerDatabase, orderStatuses } from "./data.js";
-import { supabase, upsertProfile, saveOrderToSupabase } from "./supabaseClient";
+import {
+  firebaseConfigured,
+  listenAuthState,
+  upsertProfile,
+  saveOrderToFirestore,
+  signUpWithEmail,
+  signInWithEmail,
+  signInWithGoogle,
+  sendPhoneOtp,
+  verifyPhoneOtp as verifyPhoneOtpWithFirebase,
+  signOutFirebase,
+} from "./firebaseClient";
 import Notification from "./components/Notification";
 import Loader from "./components/Loader";
 
 function App() {
   const [currentUser, setCurrentUser] = React.useState(null);
-  const [supabaseSessionUser, setSupabaseSessionUser] = React.useState(null);
+ 
   const [cart, setCart] = React.useState([]);
   const [orders, setOrders] = React.useState([]);
   const [showOrderHistory, setShowOrderHistory] = React.useState(false);
@@ -27,73 +38,38 @@ function App() {
     setShowOrderHistory(false);
   };
 
-  // Monitor Supabase session and auto-login if present
+  // Monitor Firebase auth state and auto-login if present
   React.useEffect(() => {
-    let subscription = null;
-    async function init() {
-      if (!supabase) return;
-      const { data: { user } = {} } = await supabase.auth.getUser();
+    if (!firebaseConfigured) return;
+    const unsub = listenAuthState(async (user) => {
       if (user) {
-        // set the app user from Supabase session
-        const name = user.user_metadata?.full_name || user.email;
-        setCurrentUser({ email: user.email, name, id: user.id });
-        setSupabaseSessionUser(user);
+        const name = user.displayName || user.email;
+        setCurrentUser({ email: user.email, name, id: user.uid });
         // ensure profile exists
-        upsertProfile(user);
+        await upsertProfile(user);
       }
-
-      // subscribe to auth changes
-      const { data } = supabase.auth.onAuthStateChange((event, session) => {
-        const u = session?.user || null;
-        if (u) {
-          const n = u.user_metadata?.full_name || u.email;
-          setCurrentUser({ email: u.email, name: n, id: u.id });
-          setSupabaseSessionUser(u);
-          upsertProfile(u);
-        } else {
-          setSupabaseSessionUser(null);
-          // don't automatically logout app user here to avoid UX surprises
-        }
-      });
-      subscription = data?.subscription;
-    }
-
-    init();
+    });
     return () => {
-      if (subscription?.unsubscribe) subscription.unsubscribe();
+      if (typeof unsub === "function") unsub();
     };
   }, []);
 
   const handleSignUp = async (email, name, password) => {
-    // If Supabase is configured, use it for sign up
-    if (supabase) {
+    // If Firebase is configured, use it for sign up
+    if (firebaseConfigured) {
       setLoading(true);
       try {
-        const { data, error } = await supabase.auth.signUp({ email, password }, { data: { full_name: name } });
-        if (error) {
-          showNotification(error.message || "Sign up failed", "error");
-          setLoading(false);
-          return false;
-        }
-
-        // Try to sign the user in immediately
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-        if (signInError) {
-          // If sign in fails, notify but still consider signup successful
-          showNotification("Account created — please check your email to confirm your account.", "success");
+        const user = await signUpWithEmail(email, password, name);
+        if (user) {
+          await upsertProfile(user);
+          handleLogin(user.email, user.displayName || name || user.email);
           setShowSignUp(false);
+          showNotification("Account created and signed in", "success");
           setLoading(false);
           return true;
         }
-
-        const user = signInData.user;
-        // upsert profile and login with id
-        await upsertProfile(user);
-        handleLogin(user.email, user.user_metadata?.full_name || user.email, user.id);
-        setShowSignUp(false);
-        showNotification("Account created and signed in", "success");
         setLoading(false);
-        return true;
+        return false;
       } catch (err) {
         showNotification(err.message || "Sign up failed", "error");
         setLoading(false);
@@ -119,9 +95,9 @@ function App() {
   };
 
   const handleLogout = () => {
-    // Sign out from Supabase if available
-    if (supabase) {
-      supabase.auth.signOut().catch(() => {});
+    // Sign out from Firebase if available
+    if (firebaseConfigured) {
+      signOutFirebase().catch(() => {});
     }
     setCurrentUser(null);
     setCart([]);
@@ -156,12 +132,12 @@ function App() {
     setCart([]);
     showNotification("Order placed successfully! Track your order in order history.", "success");
 
-    // Persist order to Supabase if available
+    // Persist order to Firestore if available
     try {
-      if (supabase && currentUser) {
+      if (firebaseConfigured && currentUser) {
         setLoading(true);
-        // saveOrderToSupabase accepts user (with id/email) and order
-        await saveOrderToSupabase(currentUser, newOrder);
+        // saveOrderToFirestore accepts user (with id/email) and order
+        await saveOrderToFirestore(currentUser, newOrder);
         setLoading(false);
       }
     } catch (err) {
@@ -184,6 +160,7 @@ function App() {
   return (
     <div className="container">
       <Notification notification={notification} />
+      <div id="recaptcha-container" />
       {loading && <Loader />}
 
       <Header
@@ -428,21 +405,18 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
   const handleEmailLogin = async (e) => {
     e.preventDefault();
     setError("");
-
-    if (supabase) {
+    if (firebaseConfigured) {
       setLoading(true);
       try {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error || !data.user) {
+        const user = await signInWithEmail(email, password);
+        if (!user) {
           setLoading(false);
-          setError(error?.message || "Invalid email or password.");
-          showNotification(error?.message || "Invalid email or password.", "error");
+          setError("Invalid email or password.");
+          showNotification("Invalid email or password.", "error");
           return;
         }
-
-        const user = data.user;
         await upsertProfile(user);
-        onLogin(user.email, user.user_metadata?.full_name || user.email, user.id);
+        onLogin(user.email, user.displayName || user.email, user.uid);
         showNotification('Signed in successfully', 'success');
         setLoading(false);
       } catch (err) {
@@ -471,12 +445,11 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
       return;
     }
 
-    if (supabase) {
+    if (firebaseConfigured) {
       try {
-        // Send OTP for phone sign-in. Note: you must configure SMS provider in Supabase.
-        const { data, error } = await supabase.auth.signInWithOtp({ phone: phoneNumber });
-        if (error) {
-          setError(error.message || "Phone sign-in failed");
+        const res = await sendPhoneOtp(phoneNumber);
+        if (!res || !res.ok) {
+          setError((res && res.error && res.error.message) || "Phone sign-in failed");
           return;
         }
         // Show inline OTP verification UI
@@ -513,14 +486,20 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
       return;
     }
 
-    if (supabase) {
+    if (firebaseConfigured) {
+      setLoading(true);
       try {
-        // Redirect to Supabase's OAuth flow for Google
-        await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin } });
-        // The above will redirect the browser. Execution may not reach here.
+        const user = await signInWithGoogle();
+        if (user) {
+          await upsertProfile(user);
+          onLogin(user.email, user.displayName || user.email, user.uid);
+          showNotification('Signed in with Google', 'success');
+        }
       } catch (err) {
         setError(err.message || "Google sign-in failed");
+        showNotification(err.message || "Google sign-in failed", "error");
       }
+      setLoading(false);
       return;
     }
 
@@ -548,17 +527,9 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase.auth.verifyOtp({ phone: pendingPhone, token: otpCode, type: 'sms' });
-      if (error) {
-        setLoading(false);
-        setError(error.message || 'OTP verification failed');
-        showNotification(error.message || 'OTP verification failed', 'error');
-        return;
-      }
-
-      const user = data?.user || null;
+      const user = await verifyPhoneOtpWithFirebase(otpCode);
       if (user) {
-        onLogin(user.email, user.user_metadata?.full_name || user.email, user.id);
+        onLogin(user.email, user.displayName || user.email, user.uid);
         await upsertProfile(user);
         showNotification('Phone verified and signed in', 'success');
       }

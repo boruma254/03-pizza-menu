@@ -65,3 +65,7 @@ export const orderStatuses = [
   { id: 5, name: "Out for Delivery", description: "Your order is on its way" },
   { id: 6, name: "Delivered", description: "Your order has been delivered" },
 ];
+
+// Supabase configuration
+// No server config exported from this file. Configure Firebase or other
+// backend via environment variables and client helpers.
