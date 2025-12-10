@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
 import { pizzaData, customerDatabase, orderStatuses } from "./data.js";
+import { supabase } from "./supabaseClient";
 
 function App() {
   const [currentUser, setCurrentUser] = React.useState(null);
@@ -16,12 +17,41 @@ function App() {
     setShowOrderHistory(false);
   };
 
-  const handleSignUp = (email, name, password) => {
+  const handleSignUp = async (email, name, password) => {
+    // If Supabase is configured, use it for sign up
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.auth.signUp({ email, password }, { data: { full_name: name } });
+        if (error) {
+          alert(error.message || "Sign up failed");
+          return false;
+        }
+
+        // Try to sign the user in immediately
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) {
+          // If sign in fails, notify but still consider signup successful
+          alert("Account created — please check your email to confirm your account.");
+          setShowSignUp(false);
+          return true;
+        }
+
+        const user = signInData.user;
+        handleLogin(user.email, user.user_metadata?.full_name || user.email);
+        setShowSignUp(false);
+        return true;
+      } catch (err) {
+        alert(err.message || "Sign up failed");
+        return false;
+      }
+    }
+
+    // Fallback: in-memory database (development only)
     if (database[email]) {
       alert("Email already exists!");
       return false;
     }
-    
+
     const newDatabase = {
       ...database,
       [email]: { password, name, orders: [] },
@@ -314,10 +344,27 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
   const [phoneNumber, setPhoneNumber] = React.useState("");
   const [googleEmail, setGoogleEmail] = React.useState("");
 
-  const handleEmailLogin = (e) => {
+  const handleEmailLogin = async (e) => {
     e.preventDefault();
     setError("");
 
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error || !data.user) {
+          setError(error?.message || "Invalid email or password.");
+          return;
+        }
+
+        const user = data.user;
+        onLogin(user.email, user.user_metadata?.full_name || user.email);
+      } catch (err) {
+        setError(err.message || "Login failed");
+      }
+      return;
+    }
+
+    // Fallback: in-memory database
     const user = database[email];
     if (user && user.password === password) {
       onLogin(email, user.name);
@@ -326,7 +373,7 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
     }
   };
 
-  const handlePhoneLogin = (e) => {
+  const handlePhoneLogin = async (e) => {
     e.preventDefault();
     setError("");
 
@@ -335,16 +382,29 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
       return;
     }
 
-    // Simulate phone number authentication
-    // In production, you'd integrate with Twilio or similar service
-    const phoneUser = Object.values(database).find(
-      (user) => user.phone === phoneNumber
-    );
+    if (supabase) {
+      try {
+        // Send OTP for phone sign-in. Note: you must configure SMS provider in Supabase.
+        const { data, error } = await supabase.auth.signInWithOtp({ phone: phoneNumber });
+        if (error) {
+          setError(error.message || "Phone sign-in failed");
+          return;
+        }
+
+        alert("An OTP has been sent to your phone. Complete verification to sign in.");
+        return;
+      } catch (err) {
+        setError(err.message || "Phone sign-in failed");
+        return;
+      }
+    }
+
+    // Fallback: in-memory database behavior
+    const phoneUser = Object.values(database).find((user) => user.phone === phoneNumber);
 
     if (phoneUser) {
       onLogin(phoneUser.email, phoneUser.name);
     } else {
-      // Create a lightweight account placeholder for phone login (not persisted)
       const userName = "Phone User";
       const userEmail = `phone_${phoneNumber}@pizza.local`;
 
@@ -353,7 +413,7 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
     }
   };
 
-  const handleGoogleLogin = (e) => {
+  const handleGoogleLogin = async (e) => {
     e.preventDefault();
     setError("");
 
@@ -362,18 +422,25 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
       return;
     }
 
-    // Simulate Google OAuth login
-    // In production, integrate with Firebase or Google OAuth API
+    if (supabase) {
+      try {
+        // Redirect to Supabase's OAuth flow for Google
+        await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin } });
+        // The above will redirect the browser. Execution may not reach here.
+      } catch (err) {
+        setError(err.message || "Google sign-in failed");
+      }
+      return;
+    }
+
+    // Fallback behavior if Supabase not configured
     const user = database[googleEmail];
 
     if (user) {
       onLogin(googleEmail, user.name);
     } else {
-      // Create a lightweight account placeholder for Google login (not persisted)
       const googleName = googleEmail.split("@")[0].replace(/\./g, " ");
-      const userName =
-        googleName.charAt(0).toUpperCase() +
-        googleName.slice(1).toLowerCase();
+      const userName = googleName.charAt(0).toUpperCase() + googleName.slice(1).toLowerCase();
 
       onLogin(googleEmail, userName);
       alert("Welcome! Your Google account is being used for this session.");
