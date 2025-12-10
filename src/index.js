@@ -3,6 +3,8 @@ import ReactDOM from "react-dom/client";
 import "./index.css";
 import { pizzaData, customerDatabase, orderStatuses } from "./data.js";
 import { supabase, upsertProfile, saveOrderToSupabase } from "./supabaseClient";
+import Notification from "./components/Notification";
+import Loader from "./components/Loader";
 
 function App() {
   const [currentUser, setCurrentUser] = React.useState(null);
@@ -12,6 +14,13 @@ function App() {
   const [showOrderHistory, setShowOrderHistory] = React.useState(false);
   const [database, setDatabase] = React.useState(customerDatabase);
   const [showSignUp, setShowSignUp] = React.useState(false);
+  const [notification, setNotification] = React.useState(null);
+  const [loading, setLoading] = React.useState(false);
+
+  const showNotification = (message, type = "info") => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 5000);
+  };
 
   const handleLogin = (email, name) => {
     setCurrentUser({ email, name });
@@ -58,10 +67,12 @@ function App() {
   const handleSignUp = async (email, name, password) => {
     // If Supabase is configured, use it for sign up
     if (supabase) {
+      setLoading(true);
       try {
         const { data, error } = await supabase.auth.signUp({ email, password }, { data: { full_name: name } });
         if (error) {
-          alert(error.message || "Sign up failed");
+          showNotification(error.message || "Sign up failed", "error");
+          setLoading(false);
           return false;
         }
 
@@ -69,8 +80,9 @@ function App() {
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) {
           // If sign in fails, notify but still consider signup successful
-          alert("Account created — please check your email to confirm your account.");
+          showNotification("Account created — please check your email to confirm your account.", "success");
           setShowSignUp(false);
+          setLoading(false);
           return true;
         }
 
@@ -79,9 +91,12 @@ function App() {
         await upsertProfile(user);
         handleLogin(user.email, user.user_metadata?.full_name || user.email, user.id);
         setShowSignUp(false);
+        showNotification("Account created and signed in", "success");
+        setLoading(false);
         return true;
       } catch (err) {
-        alert(err.message || "Sign up failed");
+        showNotification(err.message || "Sign up failed", "error");
+        setLoading(false);
         return false;
       }
     }
@@ -99,13 +114,19 @@ function App() {
     setDatabase(newDatabase);
     handleLogin(email, name);
     setShowSignUp(false);
+    showNotification("Account created (local)", "success");
     return true;
   };
 
   const handleLogout = () => {
+    // Sign out from Supabase if available
+    if (supabase) {
+      supabase.auth.signOut().catch(() => {});
+    }
     setCurrentUser(null);
     setCart([]);
     setShowOrderHistory(false);
+    showNotification("Logged out", "info");
   };
 
   const addToCart = (pizza) => {
@@ -133,16 +154,20 @@ function App() {
 
     setOrders([...orders, newOrder]);
     setCart([]);
-    alert("Order placed successfully! Track your order in the order history.");
+    showNotification("Order placed successfully! Track your order in order history.", "success");
 
     // Persist order to Supabase if available
     try {
       if (supabase && currentUser) {
+        setLoading(true);
         // saveOrderToSupabase accepts user (with id/email) and order
         await saveOrderToSupabase(currentUser, newOrder);
+        setLoading(false);
       }
     } catch (err) {
+      setLoading(false);
       console.warn('Order save failed', err?.message || err);
+      showNotification('Order saved remotely failed', 'error');
     }
   };
 
@@ -158,6 +183,9 @@ function App() {
 
   return (
     <div className="container">
+      <Notification notification={notification} />
+      {loading && <Loader />}
+
       <Header
         cartCount={cart.length}
         user={currentUser}
@@ -402,18 +430,25 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
     setError("");
 
     if (supabase) {
+      setLoading(true);
       try {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error || !data.user) {
+          setLoading(false);
           setError(error?.message || "Invalid email or password.");
+          showNotification(error?.message || "Invalid email or password.", "error");
           return;
         }
 
         const user = data.user;
         await upsertProfile(user);
         onLogin(user.email, user.user_metadata?.full_name || user.email, user.id);
+        showNotification('Signed in successfully', 'success');
+        setLoading(false);
       } catch (err) {
+        setLoading(false);
         setError(err.message || "Login failed");
+        showNotification(err.message || "Login failed", "error");
       }
       return;
     }
@@ -444,10 +479,10 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
           setError(error.message || "Phone sign-in failed");
           return;
         }
-
         // Show inline OTP verification UI
         setPendingPhone(phoneNumber);
         setPhoneOtpSent(true);
+        showNotification('OTP sent to your phone', 'info');
         return;
       } catch (err) {
         setError(err.message || "Phone sign-in failed");
@@ -512,9 +547,12 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
     }
 
     try {
+      setLoading(true);
       const { data, error } = await supabase.auth.verifyOtp({ phone: pendingPhone, token: otpCode, type: 'sms' });
       if (error) {
+        setLoading(false);
         setError(error.message || 'OTP verification failed');
+        showNotification(error.message || 'OTP verification failed', 'error');
         return;
       }
 
@@ -522,13 +560,17 @@ function LoginPage({ onLogin, onToggleSignUp, database }) {
       if (user) {
         onLogin(user.email, user.user_metadata?.full_name || user.email, user.id);
         await upsertProfile(user);
+        showNotification('Phone verified and signed in', 'success');
       }
 
       setPhoneOtpSent(false);
       setPendingPhone("");
       setOtpCode("");
+      setLoading(false);
     } catch (err) {
+      setLoading(false);
       setError(err.message || 'OTP verification failed');
+      showNotification(err.message || 'OTP verification failed', 'error');
     }
   };
 

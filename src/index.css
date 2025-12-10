@@ -838,3 +838,43 @@ body {
   padding: 3rem;
   color: #666;
 }
+
+/* Notification banners */
+.notification {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  min-width: 280px;
+  max-width: 90%;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  color: #fff;
+  padding: 12px 16px;
+}
+.notification .notification-inner { text-align: center; font-weight: 600; }
+.notification.info { background: linear-gradient(90deg,#2b9fff,#36c6ff); }
+.notification.success { background: linear-gradient(90deg,#28c76f,#7be495); }
+.notification.error { background: linear-gradient(90deg,#ff6b6b,#ff8a8a); }
+
+/* Loader overlay */
+.loader-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.2);
+  z-index: 9998;
+}
+.loader-spinner {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 6px solid rgba(255,255,255,0.25);
+  border-top-color: #fff;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
