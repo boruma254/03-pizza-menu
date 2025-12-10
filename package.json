@@ -4,7 +4,7 @@
   "description": "A modern pizza ordering web application with real-time order tracking and user authentication",
   "author": "Your Name",
   "license": "MIT",
-  "homepage": "https://github.com/yourusername/03-pizza-menu",
+  "homepage": "/",
   "repository": {
     "type": "git",
     "url": "https://github.com/yourusername/03-pizza-menu.git"
