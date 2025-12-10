@@ -197,7 +197,10 @@ function Pizza({ pizzaObj, addToCart }) {
 
   return (
     <li className={`pizza ${pizzaObj.soldOut ? "sold-out" : ""}`}>
-      <img src={pizzaObj.photoName} alt={pizzaObj.name} />
+      <img
+        src={process.env.PUBLIC_URL + "/" + (pizzaObj.photoName || "pizzas/focaccia.jpg")}
+        alt={pizzaObj.name}
+      />
       <div>
         <h3>{pizzaObj.name}</h3>
         <p>{pizzaObj.ingredients}</p>
