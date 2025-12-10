@@ -76,22 +76,6 @@ function App() {
     );
   };
 
-  if (!currentUser) {
-    return showSignUp ? (
-      <SignUpPage 
-        onSignUp={handleSignUp} 
-        onToggleSignUp={() => setShowSignUp(false)}
-        database={database}
-      />
-    ) : (
-      <LoginPage 
-        onLogin={handleLogin} 
-        onToggleSignUp={() => setShowSignUp(true)}
-        database={database}
-      />
-    );
-  }
-
   return (
     <div className="container">
       <Header
@@ -102,7 +86,21 @@ function App() {
         hasOrders={orders.length > 0}
       />
 
-      {showOrderHistory ? (
+      {!currentUser ? (
+        showSignUp ? (
+          <SignUpPage
+            onSignUp={handleSignUp}
+            onToggleSignUp={() => setShowSignUp(false)}
+            database={database}
+          />
+        ) : (
+          <LoginPage
+            onLogin={handleLogin}
+            onToggleSignUp={() => setShowSignUp(true)}
+            database={database}
+          />
+        )
+      ) : showOrderHistory ? (
         <OrderHistory orders={orders} updateOrderStatus={updateOrderStatus} />
       ) : (
         <>
@@ -156,7 +154,7 @@ function Menu({ addToCart }) {
   const numPizzas = pizzas.length;
 
   return (
-    <main className="menu">
+    <main id="menu" className="menu">
       <h2>Our menu</h2>
 
       {numPizzas > 0 ? (
@@ -292,7 +290,15 @@ function Order({ closeHour, openHour }) {
         We're open from {openHour}:00 to {closeHour}:00. Come visit us or order
         online.
       </p>
-      <button className="btn">Order</button>
+      <button
+        className="btn"
+        onClick={() => {
+          const el = document.getElementById("menu");
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }}
+      >
+        Order
+      </button>
     </div>
   );
 }
