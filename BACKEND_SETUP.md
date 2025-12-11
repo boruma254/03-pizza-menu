@@ -89,9 +89,10 @@ Frontend will open at `http://localhost:3000`
 2. **Create Web Service:**
    - Click "New +" → "Web Service"
    - Connect your GitHub repo: `boruma254/03-pizza-menu`
-   - Root directory: `backend`
-   - Build command: `npm install`
-   - Start command: `npm start`
+   - Root directory
+
+   - Build command: `cd backend && npm install`
+   - Start command: `cd backend && npm start`
    - Environment variables:
      ```
      MONGODB_URI=mongodb+srv://pizza_user:PASSWORD@cluster.mongodb.net/pizza-menu?retryWrites=true&w=majority

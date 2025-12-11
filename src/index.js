@@ -42,7 +42,7 @@ function App() {
     }
   }, []);
 
-  const handleSignUp = async (email, name, password) => {
+  const handleSignUp = async (name, email, password) => {
     setLoading(true);
     try {
       const user = await signUpWithBackend(email, password, name);
@@ -454,7 +454,7 @@ function SignUpPage({ onSignUp, onToggleSignUp, setLoading, showNotification }) 
       return;
     }
 
-    if (onSignUp(email, name, password)) {
+    if (onSignUp(name, email, password)) {
       setSuccess("Account created successfully! Logging you in...");
       setTimeout(() => {
         // The onSignUp function already logged the user in

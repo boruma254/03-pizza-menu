@@ -1,0 +1,30 @@
+name: Run Supabase Migrations
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  migrate:
+    name: Execute DB migrations against Supabase
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Run migration SQL
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "ERROR: SUPABASE_DB_URL secret is not set. Add it in repository Settings → Secrets."
+            exit 1
+          fi
+          echo "Running migrations against Supabase..."
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f db/migrations/001_create_profiles_and_orders.sql

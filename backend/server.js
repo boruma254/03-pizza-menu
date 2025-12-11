@@ -11,7 +11,22 @@ const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/pizza-menu';
 
 // Middleware
-app.use(cors());
+const extraOrigins = process.env.FRONTEND_ORIGIN
+  ? process.env.FRONTEND_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean)
+  : [];
+
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://03-pizza-menu-ten.vercel.app',
+  ...extraOrigins
+].filter(Boolean);
+
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // Connect to MongoDB

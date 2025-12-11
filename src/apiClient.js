@@ -1,5 +1,10 @@
 // API client for backend communication
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// Prefer env; fall back to Render backend when running on Vercel; else localhost for dev.
+const API_URL =
+  process.env.REACT_APP_API_URL ||
+  (typeof window !== 'undefined' && window.location.hostname.endsWith('vercel.app')
+    ? 'https://pizza-menu-backend.onrender.com/api'
+    : 'http://localhost:5000/api');
 
 let token = localStorage.getItem('token');
 
